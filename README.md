@@ -67,6 +67,12 @@ The application checks the purchase constraints before creating the order.
 
 ## Installation
 
+Clone the repository and open the project folder.
+
+Install the required dependency:
+
+    pip install -r requirements.txt
+
 ## Run the Application
 
 Install the required dependency:
