@@ -67,6 +67,27 @@ The application checks the purchase constraints before creating the order.
 
 ## Installation
 
+## Run the Application
+
+Install the required dependency:
+
+    pip install -r requirements.txt
+
+Start SmartBuy AI:
+
+    streamlit run app.py
+
+Open the local address shown in your terminal, usually http://localhost:8501.
+
+## Run Automated Tests
+
+Run the database test:
+
+    python -m unittest test_database -v
+
+If the test passes, the terminal should display OK.
+
+
 Clone the repository and open the project directory.
 
 Install the required dependency:
