@@ -5,14 +5,18 @@ from database import (
     save_purchase_order,
     get_purchase_order,
 )
+
+# Initialize database
 initialize_database()
 
+# Page configuration
 st.set_page_config(
     page_title="SmartBuy AI",
     page_icon="🛒",
-    layout="wide"
+    layout="wide",
 )
 
+# Application heading
 st.title("🛒 SmartBuy AI")
 st.subheader("Intelligent Purchasing Agent")
 
@@ -22,6 +26,10 @@ st.write(
 )
 
 st.divider()
+
+# --------------------------------------------------
+# SCENARIO 1: PURCHASE RECOMMENDATION REVIEW
+# --------------------------------------------------
 
 st.header("📦 Scenario 1: Purchase Recommendation Review")
 
@@ -37,6 +45,7 @@ available_budget = 30000
 available_storage = 500
 unit_price = 40
 
+# Display purchasing information
 st.subheader("📊 Purchasing Information")
 
 col1, col2, col3 = st.columns(3)
@@ -51,119 +60,133 @@ col4.metric("Incoming Orders", f"{incoming_orders} units")
 col5.metric("Available Budget", f"₹{available_budget:,}")
 col6.metric("Available Storage", f"{available_storage} units")
 
-st.divider()
+# --------------------------------------------------
+# PURCHASING ANALYSIS
+# --------------------------------------------------
 
+st.divider()
 st.header("🧠 Purchasing Decision")
 
-if st.button("Analyse Purchase Recommendation"):
+required_qty = max(
+    0,
+    expected_demand - current_inventory - incoming_orders,
+)
 
-    required_qty = max(
-        0,
-        expected_demand - current_inventory - incoming_orders
+if required_qty > 0:
+    required_qty = max(required_qty, supplier_minimum)
+
+estimated_cost = required_qty * unit_price
+
+# Store calculated analysis for use by other sections
+issues = []
+
+if estimated_cost > available_budget:
+    issues.append("The purchase exceeds the available budget.")
+
+if required_qty > available_storage:
+    issues.append("The purchase exceeds available storage capacity.")
+
+st.write(f"Recommended quantity: **{recommended_qty} units**")
+st.write(f"Calculated purchase quantity: **{required_qty} units**")
+st.write(f"Unit price: **₹{unit_price}**")
+st.write(f"Estimated purchase cost: **₹{estimated_cost:,}**")
+
+st.subheader("Final Recommendation")
+
+if issues:
+    decision = "INVESTIGATE FURTHER"
+    st.error(decision)
+
+    for issue in issues:
+        st.write(f"- {issue}")
+
+    st.write(
+        "The purchase must not proceed until the issues are resolved."
     )
 
-    required_qty = max(required_qty, supplier_minimum) if required_qty > 0 else 0
+elif required_qty == 0:
+    decision = "REJECT THE PURCHASE"
+    st.success(decision)
 
-    estimated_cost = required_qty * unit_price
+    st.write(
+        "Existing inventory and incoming orders are sufficient "
+        "to cover expected demand."
+    )
 
-    st.subheader("Investigation Results")
+elif required_qty != recommended_qty:
+    decision = "MODIFY THE PURCHASE"
+    st.warning(decision)
 
-    st.write(f"Calculated purchase quantity: **{required_qty} units**")
-    st.write(f"Unit price: **₹{unit_price}**")
-    st.write(f"Estimated purchase cost: **₹{estimated_cost:,}**")
+    st.write(
+        f"The recommended quantity of {recommended_qty} units "
+        f"should be modified to {required_qty} units."
+    )
 
-    issues = []
+else:
+    decision = "ACCEPT THE PURCHASE"
+    st.success(decision)
 
-    if estimated_cost > available_budget:
-        issues.append("The purchase exceeds the available budget.")
+    st.write(
+        "The recommendation matches the calculated requirement "
+        "and satisfies the configured constraints."
+    )
 
-    if required_qty > available_storage:
-        issues.append("The purchase exceeds available storage capacity.")
-
-    if required_qty > 0 and required_qty < supplier_minimum:
-        issues.append("The purchase is below the supplier minimum order quantity.")
-
-    st.subheader("Final Recommendation")
-
-    if issues:
-        st.error("INVESTIGATE FURTHER")
-
-        for issue in issues:
-            st.write(f"- {issue}")
-
-        st.write(
-            "The purchase should not proceed until the constraints are resolved."
-        )
-
-    elif required_qty == 0:
-        st.success("REJECT THE PURCHASE")
-
-        st.write(
-            "Existing inventory and incoming orders are sufficient "
-            "to cover expected demand."
-        )
-
-    elif required_qty != recommended_qty:
-        st.warning("MODIFY THE PURCHASE")
-
-        st.write(
-            f"Recommended quantity: {recommended_qty} units"
-        )
-
-        st.write(
-            f"Calculated quantity: {required_qty} units"
-        )
-
-        st.write(
-            "The original recommendation should be modified "
-            "to better match the calculated requirement."
-        )
-
-    else:
-        st.success("ACCEPT THE PURCHASE")
-
-        st.write(
-            "The recommendation matches the calculated requirement "
-            "and satisfies the configured constraints."
-        )
+# Save the analysis result in the current session
+st.session_state["purchase_analysis"] = {
+    "decision": decision,
+    "required_qty": required_qty,
+    "estimated_cost": estimated_cost,
+    "issues": issues,
+}
 
 st.divider()
 
-st.caption("SmartBuy AI | Rappi Purchasing Agent Assignment")
-
-# Purchase Order Section
-
-st.divider()
+# --------------------------------------------------
+# PURCHASE ORDER MANAGEMENT
+# --------------------------------------------------
 
 st.header("📝 Purchase Order Management")
 
 st.write(
-    "After reviewing the recommendation, the buyer can "
-    "approve the calculated quantity and create a purchase order."
+    "Review the recommendation and approve the purchase "
+    "before creating a purchase order."
 )
 
-if "purchase_order" not in st.session_state:
-    st.session_state.purchase_order = None
+analysis = st.session_state["purchase_analysis"]
+
+# Buyer approval is available only when the purchase is eligible
+if analysis["decision"] in ("ACCEPT THE PURCHASE", "MODIFY THE PURCHASE"):
+    buyer_approved = st.checkbox(
+        "I have reviewed and approve this purchase order."
+    )
+else:
+    buyer_approved = False
 
 if st.button("Create Purchase Order"):
 
-    required_qty = max(
-        0,
-        expected_demand - current_inventory - incoming_orders
-    )
+    # Block orders if investigation is required
+    if analysis["issues"]:
+        st.error(
+            "Purchase blocked: resolve the investigation issues "
+            "before creating an order."
+        )
 
-    if required_qty > 0:
-        required_qty = max(required_qty, supplier_minimum)
-
-    estimated_cost = required_qty * unit_price
-
-    if required_qty == 0:
+    elif analysis["decision"] == "REJECT THE PURCHASE":
         st.warning("No purchase is required.")
 
-    elif estimated_cost > available_budget:
+    elif not buyer_approved:
+        st.warning(
+            "Please approve the purchase recommendation before "
+            "creating an order."
+        )
+
+    elif analysis["required_qty"] <= 0:
+        st.warning("Purchase quantity must be greater than zero.")
+
+    elif analysis["estimated_cost"] > available_budget:
         st.error("Purchase blocked: insufficient budget.")
 
-    elif required_qty > available_storage:
+    elif analysis["required_qty"] > available_storage:
         st.error("Purchase blocked: insufficient storage.")
 
     else:
@@ -180,34 +203,40 @@ if st.button("Create Purchase Order"):
         else:
             order = {
                 "order_id": order_id,
-                "quantity": required_qty,
+                "quantity": analysis["required_qty"],
                 "unit_price": unit_price,
-                "total_cost": estimated_cost,
+                "total_cost": analysis["estimated_cost"],
                 "status": "Created",
             }
 
-            save_purchase_order(order)
+            try:
+                save_purchase_order(order)
 
-            st.success("Purchase order saved to the database!")
+                st.session_state["purchase_order"] = order
 
-            st.subheader("📄 Created Purchase Order")
+                st.success("Purchase order saved to the database!")
 
-            st.write(f"**Order ID:** {order['order_id']}")
-            st.write(f"**Quantity:** {order['quantity']} units")
-            st.write(f"**Unit Price:** ₹{order['unit_price']}")
-            st.write(f"**Total Cost:** ₹{order['total_cost']:,}")
-            st.write(f"**Status:** {order['status']}")
+                st.subheader("📄 Created Purchase Order")
 
+                st.write(f"**Order ID:** {order['order_id']}")
+                st.write(f"**Quantity:** {order['quantity']} units")
+                st.write(f"**Unit Price:** ₹{order['unit_price']}")
+                st.write(f"**Total Cost:** ₹{order['total_cost']:,}")
+                st.write(f"**Status:** {order['status']}")
 
-    # Purchase Order Validation
+            except Exception as error:
+                st.error(f"Unable to create purchase order: {error}")
+
+# --------------------------------------------------
+# PURCHASE ORDER VALIDATION
+# --------------------------------------------------
 
 st.divider()
-
 st.header("✅ Purchase Order Validation")
 
 st.write(
-    "Verify that the created purchase order matches the "
-    "approved quantity, cost, budget, and storage constraints."
+    "Verify that the saved purchase order matches the calculated "
+    "quantity, cost, budget, and storage constraints."
 )
 
 if st.button("Validate Purchase Order"):
@@ -224,13 +253,13 @@ if st.button("Validate Purchase Order"):
 
         expected_quantity = max(
             0,
-            expected_demand - current_inventory - incoming_orders
+            expected_demand - current_inventory - incoming_orders,
         )
 
         if expected_quantity > 0:
             expected_quantity = max(
                 expected_quantity,
-                supplier_minimum
+                supplier_minimum,
             )
 
         expected_cost = order["quantity"] * order["unit_price"]
@@ -275,3 +304,6 @@ if st.button("Validate Purchase Order"):
 
             st.write(f"Verified order: {order['order_id']}")
 
+st.divider()
+
+st.caption("SmartBuy AI | Rappi Purchasing Agent Assignment")
