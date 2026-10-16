@@ -4,42 +4,46 @@
 
 SmartBuy AI is a purchasing decision-support application built with Python, Streamlit, and SQLite.
 
-It evaluates a recommended purchase quantity against inventory, expected demand, incoming orders, supplier minimum order quantity, budget, and storage capacity.
+The application reviews a recommended purchase quantity against inventory, expected demand, incoming orders, supplier minimum order quantity, budget, and storage capacity.
 
-Instead of blindly accepting a purchase recommendation, the application calculates the required quantity, checks purchasing constraints, creates a purchase order when the checks pass, and validates the saved order.
+It calculates the required quantity, explains the decision, allows buyer approval, creates a purchase order, and validates the saved order.
+
+The current prototype uses sample data and rule-based decision logic. It does not connect to an external LLM or live supplier APIs.
 
 ## Features
 
-- Calculates required purchase quantity.
+- Calculates the required purchase quantity.
 - Accounts for current inventory and incoming orders.
 - Applies the supplier minimum order quantity.
 - Checks available budget and storage capacity.
-- Creates purchase orders when the configured checks pass.
-- Stores purchase orders in an SQLite database.
-- Prevents duplicate creation of the same purchase order ID.
-- Validates saved purchase orders.
-- Includes an automated database test.
+- Requires buyer approval before creating an order.
+- Saves purchase orders in SQLite.
+- Prevents duplicate purchase order IDs.
+- Validates saved order quantities, costs, and constraints.
+- Includes automated database tests.
 
 ## Technology Stack
 
 - Python
 - Streamlit
 - SQLite
-- Python unittest
+- Python `unittest`
 
-## Decision Workflow
+## How It Works
 
-1. Investigate inventory, demand, incoming orders, and purchasing constraints.
-2. Calculate the required purchase quantity.
-3. Check budget and storage capacity.
-4. Create and save a purchase order if the checks pass.
-5. Retrieve and validate the saved purchase order.
+1. Read the purchasing information.
+2. Calculate the net quantity required.
+3. Check the budget and storage constraints.
+4. Decide whether to accept, modify, reject, or investigate the recommendation.
+5. Request buyer approval before creating an order.
+6. Save the purchase order in SQLite.
+7. Retrieve and validate the saved order.
 
 ## Example Scenario
 
-The application uses sample data to demonstrate purchasing decisions.
+The application uses the following sample data:
 
-| Input | Example Value |
+| Input | Value |
 |---|---:|
 | Recommended quantity | 800 units |
 | Current inventory | 200 units |
@@ -50,15 +54,33 @@ The application uses sample data to demonstrate purchasing decisions.
 | Available budget | ₹30,000 |
 | Available storage | 500 units |
 
-With these values, the calculated requirement is:
+**Required quantity**
 
-400 - 200 - 100 = 100 units
+Expected demand − Current inventory − Incoming orders
 
-Estimated purchase cost:
+400 − 200 − 100 = 100 units
+
+**Estimated cost**
 
 100 × ₹40 = ₹4,000
 
-The application checks the purchase constraints before creating the order.
+The application compares the calculated requirement with the original recommendation and checks the configured purchasing constraints.
+
+## Project Structure
+
+```text
+SmartBuyAI/
+├── app.py
+├── database.py
+├── test_database.py
+├── requirements.txt
+├── README.md
+├── architecture.md
+├── .env.example
+└── .gitignore
+```
+
+The SQLite database file is created locally when the application runs and should not be committed to the repository.
 
 ## Prerequisites
 
@@ -67,36 +89,39 @@ The application checks the purchase constraints before creating the order.
 
 ## Installation
 
-Clone the repository and open the project folder.
+Clone the repository and open its directory.
 
-Install the required dependency:
-
-    pip install -r requirements.txt
-
-## Run the Application
-
-Install the required dependency:
-
-    pip install -r requirements.txt
-
-Start SmartBuy AI:
-
-    streamlit run app.py
-
-Open the local address shown in your terminal, usually http://localhost:8501.
-
-## Run Automated Tests
-
-Run the database test:
-
-    python -m unittest test_database -v
-
-If the test passes, the terminal should display OK.
-
-
-Clone the repository and open the project directory.
-
-Install the required dependency:
+Install the dependencies:
 
 ```bash
 pip install -r requirements.txt
+```
+
+## Run the Application
+
+```bash
+python -m streamlit run app.py
+```
+
+Open the local address displayed in the terminal, usually `http://localhost:8501`.
+
+## Run Automated Tests
+
+```bash
+python -m unittest test_database -v
+```
+
+The database tests cover saving and retrieving purchase orders, duplicate order IDs, zero quantities, and negative unit prices.
+
+## Validation Approach
+
+After an order is created, the application retrieves it from SQLite and checks its quantity, total cost, budget, storage capacity, and status.
+
+The validation result indicates whether the saved order satisfies the configured checks.
+
+## Limitations
+
+- Purchasing information is sample data.
+- Decisions use deterministic business rules.
+- Live supplier APIs and external LLM integration are not implemented.
+- Authentication and production deployment are outside the scope of this prototype.
